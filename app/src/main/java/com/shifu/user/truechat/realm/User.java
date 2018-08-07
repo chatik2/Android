@@ -1,38 +1,38 @@
-package com.shifu.user.truechat.json;
+package com.shifu.user.truechat.realm;
 
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
 
 import org.apache.commons.lang3.builder.ToStringBuilder;
 
-public class JsonUid  {
+import io.realm.RealmObject;
+import io.realm.annotations.PrimaryKey;
 
-    @SerializedName("uid")
+public class User extends RealmObject {
+
+    public static final String FIELD_ID = "id";
+
+    @SerializedName("id")
     @Expose
-    private Long uid;
+    @PrimaryKey
+    private Long id;
 
     @SerializedName("name")
     @Expose
     private String name;
 
-    public JsonUid(Long uid, String name) {
-        this.uid = uid;
-        this.name = name;
-    }
-
-    public Long getUid() {
-        return uid;
-    }
-
     public String getName() {
         return name;
     }
 
+    public Long getId() {
+        return id;
+    }
 
     @Override
     public String toString() {
         return new ToStringBuilder(this)
-                .append("uid", uid)
+                .append("id", id)
                 .append("name", name)
                 .toString();
     }

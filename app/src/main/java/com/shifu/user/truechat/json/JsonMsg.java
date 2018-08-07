@@ -48,5 +48,4 @@ public class JsonMsg {
                 .append("date", date)
                 .append("author", author).toString();
     }
-
 }

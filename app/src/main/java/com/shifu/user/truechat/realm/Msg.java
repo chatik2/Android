@@ -7,7 +7,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import io.realm.RealmObject;
 import io.realm.annotations.PrimaryKey;
 
-public class Msgs extends RealmObject {
+public class Msg extends RealmObject {
 
 
     private static AtomicLong INTEGER_COUNTER = new AtomicLong(0);
@@ -16,20 +16,32 @@ public class Msgs extends RealmObject {
     @PrimaryKey
     private Long mid;
 
-    private Long uid;
+    private Long id;
     private String text;
     private String date;
+    private Long uid;
+
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this)
+                .append("Local_id", mid)
+                .append("Net_id", id)
+                .append("text", text)
+                .append("date", date)
+                .append("uid", uid)
+                .toString();
+    }
+
+    public static long increment() {
+        return INTEGER_COUNTER.getAndIncrement();
+    }
 
     public Long getMid() {
         return mid;
     }
 
-    public Long getUid() {
-        return uid;
-    }
-
-    public void setUid(Long uid) {
-        this.uid = uid;
+    public Long getid() {
+        return id;
     }
 
     public String getText() {
@@ -46,18 +58,11 @@ public class Msgs extends RealmObject {
         this.date = data;
     }
 
-    @Override
-    public String toString() {
-        return new ToStringBuilder(this)
-                .append("mid", mid)
-                .append("uid", uid)
-                .append("text", text)
-                .append("date", date)
-                .toString();
+    public void setUid(Long uid) {
+        this.uid = uid;
     }
-
-    public static long increment() {
-        return INTEGER_COUNTER.getAndIncrement();
+    public Long getUid(){
+        return this.uid;
     }
 }
 

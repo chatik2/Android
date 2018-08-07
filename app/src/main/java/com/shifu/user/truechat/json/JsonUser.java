@@ -9,13 +9,13 @@ public class JsonUser {
 
     @SerializedName("id")
     @Expose
-    private int id;
+    private Long id;
     @SerializedName("name")
     @Expose
     private String name;
 
 
-    public int getId() {
+    public Long getId() {
         return id;
     }
 

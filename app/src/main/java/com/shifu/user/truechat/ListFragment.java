@@ -1,9 +1,12 @@
 package com.shifu.user.truechat;
 
+import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
 import android.support.v4.app.Fragment;
 import android.support.v4.widget.NestedScrollView;
+import android.support.v7.widget.DefaultItemAnimator;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
@@ -11,158 +14,142 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.EditText;
+import android.widget.TextView;
 
+import com.shifu.user.truechat.json.ApiInterface;
+import com.shifu.user.truechat.json.JsonMsg;
+import com.shifu.user.truechat.realm.Author;
+import com.shifu.user.truechat.realm.Msg;
+import com.shifu.user.truechat.realm.User;
+
+import java.util.List;
+
+import io.reactivex.BackpressureStrategy;
+import io.reactivex.Flowable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.disposables.Disposable;
-import io.reactivex.processors.PublishProcessor;
 import io.reactivex.schedulers.Schedulers;
+import io.realm.Realm;
+import okhttp3.MediaType;
+import okhttp3.RequestBody;
 
 public class ListFragment extends Fragment {
 
-    private final String CLASS_TAG = ListFragment.class.getSimpleName();
-
-    //TODO to clear after test
-    Integer i = 0;
-
-
     // Init layout elements
     private NestedScrollView scrollView;
-    private RecyclerView recyclerView;
-
-    // Init search variables
-    private boolean isLoading = false;
-
+    private RecyclerView rv;
 
     // Init Rx variables & functions
     private static CompositeDisposable disposables = new CompositeDisposable();
-    private static Disposable update = null;
+    private static Disposable observerSend;
 
-    private static Disposable getUsers = null;
-    public static PublishProcessor<Long> publishProcessorUsers = PublishProcessor.create();
-
-    private static Disposable getMsgs = null;
-    public static PublishProcessor<Long> publishProcessorMsgs = PublishProcessor.create();
-
-
-    // Init program variables
-    private static RealmController rc = null;
-    private static RealmRVAdapter ra = null;
+    // Init instances
+    private static RealmController rc=RealmController.getInstance();
+    private static RVAdapter ra;
 
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+
         View view = inflater.inflate(R.layout.list_fragment, container, false);
 
-        if (rc == null) rc = RealmController.getInstance();
-        if (ra == null) ra = RealmRVAdapter.getInstance();
+        rv = view.findViewById(R.id.recycler_view);
 
-        // Init RecycleView
-        recyclerView = view.findViewById(R.id.recycler_view);
-        recyclerView.setNestedScrollingEnabled(false);
-        LinearLayoutManager layoutManager = new LinearLayoutManager(getActivity());
-        layoutManager.setOrientation(LinearLayoutManager.VERTICAL);
-        recyclerView.setLayoutManager(layoutManager);
-        recyclerView.setHasFixedSize(false);
-        recyclerView.setAdapter(ra);
+        ApiInterface api = ApiClient.getInstance().getApi();
 
-        // Init other Views
-        final EditText msgText = view.findViewById(R.id.msg_text);
-        msgText.requestFocus();
+        TextView currentMsg = view.findViewById(R.id.msg);
+        Button buttonSend = view.findViewById(R.id.send_button);
+        buttonSend.setOnClickListener((View onClickView) -> {
+            if (currentMsg.getText().length() > 0) {
 
-        scrollView = view.findViewById(R.id.nested_scroll_view);
-
-        update = RxBus.getInstance()
-                .getMessages(Event.UPDATE)
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(response -> {
-                    Log.d(Event.UPDATE.toString(), "Received: "+RealmRVAdapter.getInstance().getData());
-                    setAdapter();
-                });
-        disposables.add(update);
-
-//        getUsers =  publishProcessorUsers
-//                .onBackpressureDrop()
-//                .concatMap((Function <Long, Publisher <Response <List <JsonUser>>>>) s -> RestController.init().getUsers(s))
-//                .subscribeOn(Schedulers.io())
-//                .observeOn(AndroidSchedulers.mainThread())
-//                .repeatWhen(observable -> observable.timeout(60, TimeUnit.SECONDS))
-//                .subscribe(rc::addUsers, t->RestController.handleError(t, "getUsers"));
-//
-//        getMsgs =  publishProcessorMsgs
-//                .onBackpressureDrop()
-//                .concatMap((Function <Long, Publisher <Response <List <JsonMsg>>>>) s -> RestController.init().getMsgs(s))
-//                .subscribeOn(Schedulers.io())
-//                .observeOn(AndroidSchedulers.mainThread())
-//                .subscribe(rc::addMsgs, t->RestController.handleError(t, "getMsgs"));
-
-//        getUsers =  publishProcessorUsers
-//                .onBackpressureDrop()
-//                .concatMap((Function <Long, Publisher <Response <List <JsonUser>>>>) s -> FakeRestController.getUsers(getResources().openRawResource(R.raw.fake_users), s))
-//                .subscribeOn(Schedulers.io())
-//                .observeOn(AndroidSchedulers.mainThread())
-////                .repeatWhen(observable -> observable.timeout(60, TimeUnit.SECONDS))
-//                .subscribe(rc::addUsers, t->FakeRestController.handleError(t, "getUsers"));
-//
-//        getMsgs =  publishProcessorMsgs
-//                .onBackpressureDrop()
-//                .concatMap((Function <Long, Publisher <Response <List <JsonMsg>>>>) s -> FakeRestController.getMsgs(getResources().openRawResource(R.raw.fake_msgs), s))
-//                .subscribeOn(Schedulers.io())
-//                .observeOn(AndroidSchedulers.mainThread())
-//                .subscribe(rc::addMsgs, t->FakeRestController.handleError(t, "getMsgs"));
-
-        getUsers = FakeRestController.getUsers(getResources().openRawResource(R.raw.fake_users), null)
-                .onBackpressureDrop()
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(rc::addUsers, t->FakeRestController.handleError(t, "getUsers"));
-
-        getMsgs = FakeRestController.getMsgs(getResources().openRawResource(R.raw.fake_msgs), null)
-                .onBackpressureDrop()
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(rc::addMsgs, t->FakeRestController.handleError(t, "getUsers"));
-
-        disposables.add(getUsers);
-        disposables.add(getMsgs);
-
-        // publishProcessorUsers.onNext(rc.getItem(Author.class, null, null).getUid());
-        Button b = view.findViewById(R.id.send_button);
-        b.setOnClickListener(view1 -> {
-            if (!isLoading) {
-                if (msgText.getText().length() > 0) {
-                    scrollView.post(() -> scrollView.fullScroll(View.FOCUS_DOWN));
-                    //rc.addMsg(msgText.getText().toString(), h);
-                }
+                final Long currentMsgId = Msg.increment();
+                observerSend = Flowable.just(0)
+                        .subscribeOn(AndroidSchedulers.mainThread())
+                        .observeOn(Schedulers.computation())
+                        .map(i -> {
+                            Realm realm = Realm.getDefaultInstance();
+                            realm.executeTransaction(trRealm -> {
+                                Msg item = trRealm.createObject(Msg.class, currentMsgId);
+                                item.setText(currentMsg.getText().toString());
+                                item.setUid(trRealm.where(Author.class).findFirst().getUid());
+                            });
+                            return realm.where(Author.class).findFirst().getUid();
+                        })
+                        .observeOn(Schedulers.io())
+                        .flatMap(uid -> {
+                            Log.d("pushMsg", "work");
+                            String text = "uid="+uid+"&text="+currentMsg.getText();
+                            return api.pushMsg(uid, RequestBody.create(MediaType.parse("text/plain"), text));
+                        })
+                        .subscribe(response -> {}, t -> { Log.d("Failure", t.toString()); }
+                        );
             }
         });
+
+
+
+        Flowable<List<User>> dbUsers = Flowable.create(users -> rc.getDBUsers(), BackpressureStrategy.LATEST);
+        Flowable<List<User>> dbMsgs = Flowable.create(msgs -> rc.getDBMsgs(), BackpressureStrategy.LATEST);
+
+        if (isNetworkAvailable()){
+            rc.clear();
+            disposables.add(api.getUid()
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(Schedulers.computation())
+                    .map(author -> {
+                        Realm realm = Realm.getDefaultInstance();
+                        realm.executeTransaction(trRealm -> trRealm.copyToRealm(author.body()));
+                        return author.body().getUid();
+                    })
+                    .observeOn(Schedulers.io())
+                    .flatMap(api::getUsers)
+                    .observeOn(Schedulers.computation())
+                    .map(users -> {
+                        Realm realm = Realm.getDefaultInstance();
+                        realm.executeTransaction(trRealm -> trRealm.copyToRealm(users.body()));
+                        return realm.where(Author.class).findFirst().getUid();
+                    })
+                    .observeOn(Schedulers.io())
+                    .concatMap(api::getMsgs)
+                    .observeOn(Schedulers.computation())
+                    .map(msgs -> {
+                        Realm realm = Realm.getDefaultInstance();
+                        realm.executeTransaction(trRealm -> {
+                            for (JsonMsg item : msgs.body()){
+                                Msg obj = trRealm.createObject(Msg.class, Msg.increment());
+                                obj.setText(item.getText());
+                                String date = item.getDate().replace('T', ' ').substring(0, 16);
+                                obj.setDate(date);
+                                obj.setUid(item.getAuthor().getId());
+                            }
+                        });
+                        return realm.copyFromRealm(realm.where(Msg.class).findAll().sort("date"));
+                    })
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(this::setAdapterData));
+        } else{
+            setAdapterData(rc.getDBMsgs());
+        }
+
 
         return view;
     }
 
-    public void setAdapter(){
-        recyclerView.setAdapter(ra);
+    void setAdapterData(List<Msg> msgs){
+        RVAdapter adapter = new RVAdapter(getContext(),msgs);
+        rv.setLayoutManager(new LinearLayoutManager(getContext()));
+        rv.setItemAnimator(new DefaultItemAnimator());
+        rv.setAdapter(adapter);
+    }
+
+    private boolean isNetworkAvailable(){
+        ConnectivityManager cm = (ConnectivityManager) getActivity().getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo info = cm.getActiveNetworkInfo();
+        return  info!=null && info.isConnected();
     }
 
     @Override
-    public void onResume(){
-        super.onResume();
-
-        disposables.add(getUsers);
-        disposables.add(getMsgs);
-        disposables.add(update);
-    }
-
-    @Override
-    public void onPause() {
-        super.onPause();
-        disposables.remove(getUsers);
-        disposables.remove(getUsers);
-        disposables.remove(update);
-    }
-
-    @Override
-    public void onDestroy() {
+    public void onDestroy(){
         super.onDestroy();
         disposables.clear();
     }

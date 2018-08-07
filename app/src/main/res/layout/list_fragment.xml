@@ -1,50 +1,51 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".ListFragment"
-    android:background="@color/listBackgroundColor">
+    tools:context=".ListFragment">
 
     <android.support.v4.widget.NestedScrollView
         android:id="@+id/nested_scroll_view"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:layout_alignParentTop="true">
+
         <android.support.v7.widget.RecyclerView
             android:id="@+id/recycler_view"
             android:layout_width="match_parent"
-            android:layout_height="match_parent" />
+            android:layout_height="wrap_content"/>
     </android.support.v4.widget.NestedScrollView>
 
     <LinearLayout
+        android:id="@+id/input_form"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:layout_gravity="bottom">
+        android:layout_alignBottom="@id/nested_scroll_view">
 
         <android.support.design.widget.TextInputLayout
-            style="@style/Widget.TrueChat.TextInputLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="@string/hint_msg">
 
             <android.support.design.widget.TextInputEditText
-                android:id="@+id/msg_text"
+                android:id="@+id/msg"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="text"
-                android:maxLines="1" />
+                android:maxLines="1"
+                style="@style/Widget.MaterialComponents.TextInputEditText.OutlinedBox"/>
         </android.support.design.widget.TextInputLayout>
 
         <android.support.design.button.MaterialButton
             android:id="@+id/send_button"
-            android:textAppearance="@style/TextAppearance.MaterialComponents.Button"
-            style="@style/Widget.TrueChat.Button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="end"
-            android:text="@string/action_send" />
+            android:text="@string/action_send"
+            android:textAppearance="@style/TextAppearance.MaterialComponents.Button"
+            style="@style/Widget.MaterialComponents.Button"/>
     </LinearLayout>
 
-</FrameLayout>
+</RelativeLayout>
