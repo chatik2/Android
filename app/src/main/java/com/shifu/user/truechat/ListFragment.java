@@ -6,6 +6,7 @@ import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v4.widget.NestedScrollView;
+import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.DefaultItemAnimator;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -14,6 +15,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 import com.shifu.user.truechat.json.ApiInterface;
@@ -22,6 +24,7 @@ import com.shifu.user.truechat.realm.Author;
 import com.shifu.user.truechat.realm.Msg;
 import com.shifu.user.truechat.realm.User;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import io.reactivex.BackpressureStrategy;
@@ -54,6 +57,10 @@ public class ListFragment extends Fragment {
         View view = inflater.inflate(R.layout.list_fragment, container, false);
 
         rv = view.findViewById(R.id.recycler_view);
+        rv.setNestedScrollingEnabled(false);
+        scrollView = view.findViewById(R.id.nested_scroll_view);
+
+        ra = new RVAdapter(getContext(), null);
 
         ApiInterface api = ApiClient.getInstance().getApi();
 
@@ -81,20 +88,30 @@ public class ListFragment extends Fragment {
                             String text = "uid="+uid+"&text="+currentMsg.getText();
                             return api.pushMsg(uid, RequestBody.create(MediaType.parse("text/plain"), text));
                         })
-                        .subscribe(response -> {}, t -> { Log.d("Failure", t.toString()); }
-                        );
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe(response -> {
+                            List<Msg> msgs = new ArrayList <>();
+                            Msg msg = rc.getMsg(currentMsgId);
+                            msg.setDate(response.body().getDate());
+                            msgs.add(msg);
+                            ra.insertMsgs(msgs);
+                            scrollView.post(() -> scrollView.fullScroll(ScrollView.FOCUS_DOWN));
+
+                        });
             }
         });
-
-
-
-        Flowable<List<User>> dbUsers = Flowable.create(users -> rc.getDBUsers(), BackpressureStrategy.LATEST);
-        Flowable<List<User>> dbMsgs = Flowable.create(msgs -> rc.getDBMsgs(), BackpressureStrategy.LATEST);
 
         if (isNetworkAvailable()){
             rc.clear();
             disposables.add(api.getUid()
                     .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .map(response -> {
+                        String newTitle = getResources()
+                                .getString(R.string.app_logged, response.body().getUsername());
+                        ((AppCompatActivity)getActivity()).getSupportActionBar().setTitle(newTitle);
+                        return response;
+                    })
                     .observeOn(Schedulers.computation())
                     .map(author -> {
                         Realm realm = Realm.getDefaultInstance();
@@ -136,10 +153,11 @@ public class ListFragment extends Fragment {
     }
 
     void setAdapterData(List<Msg> msgs){
-        RVAdapter adapter = new RVAdapter(getContext(),msgs);
+        ra.insertMsgs(msgs);
         rv.setLayoutManager(new LinearLayoutManager(getContext()));
         rv.setItemAnimator(new DefaultItemAnimator());
-        rv.setAdapter(adapter);
+        rv.setAdapter(ra);
+        scrollView.post(() -> scrollView.fullScroll(ScrollView.FOCUS_DOWN));
     }
 
     private boolean isNetworkAvailable(){

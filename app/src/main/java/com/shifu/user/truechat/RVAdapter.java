@@ -12,6 +12,7 @@ import android.widget.TextView;
 import com.shifu.user.truechat.realm.Msg;
 import com.shifu.user.truechat.realm.User;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,7 +31,7 @@ public class RVAdapter extends RecyclerView.Adapter<RVAdapter.RepoViewHolder> {
 
 
     RVAdapter(Context context , List<Msg> items){
-        this.items = items;
+        this.items = (items == null)?new ArrayList <>():items;
         for (User obj : RealmController.getInstance().getDBUsers()){
             users.put(obj.getId(), obj.getName());
         }
@@ -73,6 +74,9 @@ public class RVAdapter extends RecyclerView.Adapter<RVAdapter.RepoViewHolder> {
     }
 
     public void insertMsgs(List<Msg> msgs) {
-        this.items.addAll(msgs);
+        if (msgs != null) {
+            this.items.addAll(msgs);
+            notifyDataSetChanged();
+        }
     }
 }

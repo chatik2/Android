@@ -1,6 +1,7 @@
 package com.shifu.user.truechat.json;
 
 import com.shifu.user.truechat.realm.Author;
+import com.shifu.user.truechat.realm.Msg;
 import com.shifu.user.truechat.realm.User;
 
 import java.util.List;
@@ -32,6 +33,6 @@ public interface ApiInterface {
     Flowable<Response<Author>> pushName(@Header("uid") Long uid, @Body String name);
 
     @POST("/new_msg")
-    Flowable<Response<Author>> pushMsg(@Query("uid") Long uid, @Body RequestBody name);
+    Flowable<Response<Msg>> pushMsg(@Query("uid") Long uid, @Body RequestBody name);
 
 }

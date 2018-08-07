@@ -1,6 +1,8 @@
 <resources>
     <string name="app_name">TrueChat</string>
 
+    <string name="app_logged">TrueChat: %s</string>
+
     <string name="hint_msg">Сообщение</string>
     <string name="action_send">Отправить</string>
 
