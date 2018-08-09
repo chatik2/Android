@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuInflater;
+import android.view.MenuItem;
 
 /**
  * идея и принцип реализации объединённых в цепочку запросов rxjava2
@@ -31,13 +32,6 @@ public class MainActivity extends AppCompatActivity {
                 .commit();
     }
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        MenuInflater inflater = getMenuInflater();
-        inflater.inflate(R.menu.toolbar_menu, menu);
-        return true;
-    }
-
     public void navigateTo(Fragment fragment, Boolean back) {
         FragmentTransaction transaction = getSupportFragmentManager()
                 .beginTransaction()
@@ -45,6 +39,11 @@ public class MainActivity extends AppCompatActivity {
 
         if (back) transaction.addToBackStack(null);
         transaction.commit();
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        return super.onOptionsItemSelected(item);
     }
 
     @Override

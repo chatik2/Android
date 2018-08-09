@@ -1,6 +1,7 @@
 package com.shifu.user.truechat;
 
 import android.content.Context;
+import android.os.Build;
 import android.support.annotation.NonNull;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
@@ -9,33 +10,26 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
-import com.shifu.user.truechat.realm.Msg;
-import com.shifu.user.truechat.realm.User;
+import com.shifu.user.truechat.model.Msg;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-
 
 public class RVAdapter extends RecyclerView.Adapter<RVAdapter.RepoViewHolder> {
 
     private LayoutInflater inflater;
     private List<Msg> items;
-    private Map<Long, String> users = new HashMap <>();
 
     private static RVAdapter instance;
-    public RVAdapter getInstance(){
+    public static RVAdapter getInstance(){
         return instance;
     }
 
 
     RVAdapter(Context context , List<Msg> items){
         this.items = (items == null)?new ArrayList <>():items;
-        for (User obj : RealmController.getInstance().getDBUsers()){
-            users.put(obj.getId(), obj.getName());
-        }
         this.inflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+        instance = this;
     }
 
     @Override
@@ -66,14 +60,26 @@ public class RVAdapter extends RecyclerView.Adapter<RVAdapter.RepoViewHolder> {
         }
 
         void setItemContent(Msg item){
-            viewText.setText(item.getText());
-            viewDate.setText(item.getDate());
-            viewAuthor.setText(users.get(item.getUid()));
+            String text = item.getText();
+            viewText.setText((text==null)?"":text);
+            String strDate = item.getDate();
+            strDate = (strDate==null)?"":strDate.replace('T', ' ').substring(0,16)+" MSK";
+            viewDate.setText(strDate);
+            String strName = RealmController.getInstance().getName(item.getUid());
+            viewAuthor.setText((strName == null)?"":strName);
 
+//            if (item.getUid() != null && item.getUid().equals(RealmController.getInstance().getId())){
+//                Log.d("RA", "!");
+//                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+//                    viewAuthor.setTextAlignment(View.TEXT_ALIGNMENT_TEXT_END);
+//                    viewDate.setTextAlignment(View.TEXT_ALIGNMENT_TEXT_START);
+//                }
+//            }
         }
     }
 
     public void insertMsgs(List<Msg> msgs) {
+        Log.d("RA","Insert: "+msgs);
         if (msgs != null) {
             this.items.addAll(msgs);
             notifyDataSetChanged();

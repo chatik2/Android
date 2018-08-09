@@ -7,6 +7,11 @@
     <string name="action_send">Отправить</string>
 
     <string name="options_title">Настройки</string>
+    <string name="sync_title">Обновление</string>
 
     <string name="msg_guestname">Аноним%s</string>
+
+    <string name="hint_name">Новое имя</string>
+    <string name="action_save">Сохранить</string>
+
 </resources>

@@ -3,8 +3,16 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
-        android:id="@+id/filter"
-        android:icon="@drawable/filter"
+        android:id="@+id/sync"
+        android:title="@string/sync_title"
+        app:actionViewClass="android.widget.ImageView"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/options"
+        android:icon="@drawable/icons8_settings"
         android:title="@string/options_title"
         app:showAsAction="always" />
+
+
 </menu>

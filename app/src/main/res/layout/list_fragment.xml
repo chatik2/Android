@@ -39,7 +39,7 @@
                 android:id="@+id/msg"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:inputType="text"
+                android:inputType="text|textMultiLine"
                 android:maxLines="1"
                 style="@style/Widget.MaterialComponents.TextInputEditText.OutlinedBox"/>
         </android.support.design.widget.TextInputLayout>

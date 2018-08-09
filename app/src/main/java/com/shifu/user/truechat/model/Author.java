@@ -1,4 +1,4 @@
-package com.shifu.user.truechat.realm;
+package com.shifu.user.truechat.model;
 
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
@@ -16,12 +16,24 @@ public class Author extends RealmObject {
     @Expose
     private Long uid;
 
+    @SerializedName("secondId")
+    @Expose
+    private Long id;
+
     @SerializedName("name")
     @Expose
     private String username;
 
+    public Long getId() {
+        return this.id;
+    }
+
     public String getUsername() {
         return username;
+    }
+
+    public void setUsername(String name){
+        this.username = name;
     }
 
     public Long getUid() {
@@ -35,4 +47,5 @@ public class Author extends RealmObject {
                 .append("username", username)
                 .toString();
     }
+
 }
