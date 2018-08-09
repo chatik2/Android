@@ -5,14 +5,7 @@ import android.support.v4.app.FragmentTransaction;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.Toolbar;
-import android.view.Menu;
-import android.view.MenuInflater;
 import android.view.MenuItem;
-
-/**
- * идея и принцип реализации объединённых в цепочку запросов rxjava2
- * с http://mahmoudramadan.net/rxjava2-realm-response-cache/
- */
 
 public class MainActivity extends AppCompatActivity {
 
@@ -49,6 +42,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        RealmController.getInstance().close();
     }
+
+
 }

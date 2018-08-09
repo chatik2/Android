@@ -10,7 +10,7 @@
 
     <item
         android:id="@+id/options"
-        android:icon="@drawable/icons8_settings"
+        android:icon="@drawable/icons8_options_32"
         android:title="@string/options_title"
         app:showAsAction="always" />
 

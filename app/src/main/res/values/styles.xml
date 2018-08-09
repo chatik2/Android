@@ -1,78 +1,29 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Base application theme. -->
-    <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
-        <!-- Customize your theme here. -->
-        <item name="colorPrimary">@color/colorPrimary</item>
-        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
-        <item name="colorAccent">@color/colorAccent</item>
-    </style>
-
-    <!-- Base application theme. -->
-    <style name="Theme.TrueChat" parent="Theme.MaterialComponents.NoActionBar">
+    <style name="Theme.TrueChat" parent="Theme.MaterialComponents.Light.NoActionBar">
 
         <item name="android:statusBarColor" tools:targetApi="m">@color/colorControlActivated</item>
         <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
 
         <item name="colorPrimary">@color/colorPrimary</item>
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
-        <item name="android:textColorPrimary">@color/textColorPrimary</item>
         <item name="colorAccent">@color/colorAccent</item>
-        <item name="colorControlActivated">@color/colorControlActivated</item>
+
+        <item name="android:textColor">@color/colorPrimary</item>
     </style>
 
     <!--Text input theme-->
     <style name="Widget.TrueChat.TextInputLayout" parent="Widget.MaterialComponents.TextInputLayout.FilledBox">
-        <item name="android:textColor">@color/textColorPrimary</item>
-    </style>
-
-    <!--Buttons theme-->
-    <style name="Widget.TrueChat.Button" parent="Widget.MaterialComponents.Button">
-        <item name="android:textColor">@color/textColorAccent</item>
-        <item name="backgroundTint">?attr/colorAccent</item>
-    </style>
-
-    <!--CheckBox theme-->
-    <style name="MyCheckBox" parent="Theme.AppCompat.Light">
-        <item name="colorControlNormal">@color/colorPrimary</item>
-        <item name="colorControlActivated">@color/colorAccent</item>
+        <item name="android:textColor">@color/colorPrimary</item>
     </style>
 
     <!--Toolbar theme-->
     <style name="Widget.TrueChat.Toolbar" parent="Theme.MaterialComponents.Light.NoActionBar">
         <item name="android:background">@color/colorPrimary</item>
         <item name="android:textSize">@dimen/toolbar_text_size</item>
-        <item name="android:textColorPrimary">@color/textColorAccent</item>
+        <item name="android:textColorPrimary">@color/textColor</item>
     </style>
 
-    <!--Text cards styles-->
-    <style name="Card.Title" parent="TextAppearance.MaterialComponents.Headline6">
-        <item name="android:textColor">@color/colorAccent</item>
-        <item name="android:textColorPrimary">@color/textColorPrimary</item>
-    </style>
-
-    <!--ProgressDialog-->
-    <style name="Progress" parent="android:Theme.Holo.Dialog">
-        <item name="android:alertDialogStyle">@style/CustomAlertDialogStyle</item>
-        <item name="android:windowBackground">@color/transparent</item>
-        <item name="android:textColorPrimary">#FFFFFF</item>
-        <item name="android:backgroundDimEnabled">false</item>
-        <item name="android:textColor">#FFFFFF</item>
-        <item name="android:textStyle">normal</item>
-        <item name="android:textSize">12sp</item>
-    </style>
-
-    <style name="CustomAlertDialogStyle">
-        <item name="android:bottomBright">@color/transparent</item>
-        <item name="android:bottomDark">@color/transparent</item>
-        <item name="android:bottomMedium">@color/transparent</item>
-        <item name="android:centerBright">@color/transparent</item>
-        <item name="android:centerDark">@color/transparent</item>
-        <item name="android:centerMedium">@color/transparent</item>
-        <item name="android:fullBright">@color/transparent</item>
-        <item name="android:fullDark">@color/transparent</item>
-        <item name="android:topBright">@color/transparent</item>
-        <item name="android:topDark">@color/transparent</item>
-    </style>
 
 </resources>

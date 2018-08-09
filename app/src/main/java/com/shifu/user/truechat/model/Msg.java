@@ -17,7 +17,7 @@ public class Msg extends RealmObject {
 //    @PrimaryKey
 //    @SerializedName("id")
     @Expose
-    private String id;
+    private Long id;
 
     @SerializedName("text")
     @Expose
@@ -50,12 +50,12 @@ public class Msg extends RealmObject {
     }
 
 
-    public String getId() {
+    public Long getId() {
         return id;
     }
 
     // In transaction only
-    public String setId(String uuid) {
+    public Long setId(Long uuid) {
         this.id = uuid;
         return uuid;
     }

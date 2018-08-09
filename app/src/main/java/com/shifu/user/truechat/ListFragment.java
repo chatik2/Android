@@ -1,6 +1,8 @@
 package com.shifu.user.truechat;
 
 import android.content.Context;
+import android.graphics.PorterDuff;
+import android.graphics.drawable.Drawable;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
@@ -17,11 +19,7 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.animation.Animation;
-import android.view.animation.AnimationUtils;
-import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
-import android.widget.ImageView;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
@@ -35,7 +33,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
-import java.util.UUID;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 import io.reactivex.Flowable;
@@ -64,6 +62,7 @@ public class ListFragment extends Fragment {
     private static CompositeDisposable disposables = new CompositeDisposable();
     private static Disposable observerGet =  null;
     private static Disposable observerUid = null;
+    private static Disposable observerSet = null;
 
     // Init instances
     private static RealmController rc=RealmController.getInstance();
@@ -76,6 +75,18 @@ public class ListFragment extends Fragment {
         setHasOptionsMenu(true);
 
         LoadTime++;
+
+        //TO Test
+//        Realm realm = Realm.getDefaultInstance();
+//        realm.executeTransaction(trRealm -> {
+//            trRealm.deleteAll();
+//            Long testUnicalId = 774L;
+//            Long testSecondId = 68590L;
+//            String testUsername = "RAS";
+//            if (trRealm.where(Author.class).findFirst() == null) {
+//                trRealm.copyToRealm(new Author(testUnicalId, testSecondId, testUsername));
+//            }
+//        });
     }
 
     @Override
@@ -93,7 +104,11 @@ public class ListFragment extends Fragment {
         Button buttonSend = view.findViewById(R.id.send_button);
         buttonSend.setOnClickListener((View onClickView) -> {
             if (currentMsg.getText().length() > 0) {
-                pushMsg(currentMsg.getText().toString());
+
+                // TODO возможно, здесь стоит ставить другую кодировку для корректной записи русских символов
+                //byte bytes[] = currentMsg.getText().toString().getBytes();
+                //pushMsg(new String(bytes, Charset.forName("UTF-8")));
+                observerSet = pushMsg(currentMsg.getText().toString());
                 currentMsg.setText("");
             }
         });
@@ -115,7 +130,7 @@ public class ListFragment extends Fragment {
             if (rc.getUid() == null) {
                 observerUid = api.getUid()
                         .map(response -> {
-                            Log.d("getAuthor", "response" + response);
+                            //Log.d("getAuthor", "response" + response);
                             return response;
                         })
                         .subscribeOn(Schedulers.io())
@@ -130,25 +145,24 @@ public class ListFragment extends Fragment {
                         })
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe(i -> {
-                            dispose(observerUid);
-                            getData();
+                            //dispose(observerUid);
+                            observerGet = getData();
+                            disposables.add(observerGet);
                         });
+                disposables.add(observerUid);
             } else {
-                Log.d("Logged", "author:" + rc.getAuthor());
-
+                //Log.d("Logged", "author:" + rc.getAuthor());
                 if (observerGet == null) {
                     observerGet = getData();
                     disposables.add(observerGet);
                 }
             }
-        } else {
-            setAdapterData(rc.getDBMsgs());
         }
         return view;
     }
 
     void setTitle(String add){
-        Log.d("new Title: ", add);
+        Log.d("setTitle: ", add);
         String newTitle = getResources().getString(R.string.app_logged, add);
         ((AppCompatActivity)getActivity()).getSupportActionBar().setTitle(newTitle);
     }
@@ -176,7 +190,6 @@ public class ListFragment extends Fragment {
     }
 
     public Disposable getData(){
-        dispose(observerGet);
         final Long uid = rc.getUid();
 
         Disposable observer = Flowable.interval(1, TimeUnit.SECONDS)
@@ -213,17 +226,17 @@ public class ListFragment extends Fragment {
                 })
                 .observeOn(Schedulers.io())
                 .concatMap(i -> {
-                    Log.d("getMsgs", "start");
+                    //Log.d("getMsgs", "start");
                     return  api.getMsgs(ApiInterface.type, uid);
                 })
                 .observeOn(AndroidSchedulers.mainThread())
                 .map(Response::body)
                 .map(list -> {
-                    Log.d("getMsgs", "received:"+list);
+                    //Log.d("getMsgs", "received:"+list);
                     List<Msg> out = new ArrayList <>();
                     for (Msg obj: list){
                         if (!obj.getUid().equals(rc.getId()) && obj.getId() != null && !rc.existMsg(obj.getId())) {
-                            Log.d("getMsgs:", obj.toString());
+                            //Log.d("getMsgs:", obj.toString());
                             out.add(obj);
                         }
                     }
@@ -234,20 +247,18 @@ public class ListFragment extends Fragment {
                     Realm realm = Realm.getDefaultInstance();
                     realm.executeTransaction(trRealm -> {
                         for (Msg item : msgs){
-                            String out;
-                            do {
-                                out = UUID.randomUUID().toString();
-                            } while (realm.where(Msg.class).equalTo(Msg.FIELD_ID, out).findFirst() != null);
-                            Log.d("getMsgs","Load in Realm: "+item.toString());
+                            Long max = (Long) trRealm.where(Msg.class).max(Msg.FIELD_ID);
+                            max = (max==null)?0:max+1;
+                            //Log.d("getMsgs","Load in Realm: "+item.toString());
                             trRealm.copyToRealm(item);
-                            item.setId(out);
+                            item.setId(max);
                         }
                     });
                     return msgs;
                 })
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(msgs -> {
-                    Log.d("getData", "last stage");
+                    //Log.d("getData", "end");
                     setTitle(rc.getAuthorName());
                     setAdapterData(msgs);
                     currentMsg.requestFocus();
@@ -257,7 +268,7 @@ public class ListFragment extends Fragment {
     }
 
     private Disposable pushMsg(final String text){
-        final String currentMsgId = rc.getNewMsgId();
+        final Long currentMsgId = rc.newMsgId();
         final Long uid = rc.getUid();
 
         scrollView.post(() -> scrollView.fullScroll(ScrollView.FOCUS_DOWN));
@@ -279,13 +290,14 @@ public class ListFragment extends Fragment {
                 .timeout(100, TimeUnit.MILLISECONDS)
                 .observeOn(AndroidSchedulers.mainThread())
                 .map(msg -> {
-                    Log.d("msg", msg.toString());
+                    //Log.d("msg", msg.toString());
                     ra.insertMsgs(Collections.singletonList(msg));
                     return msg;
                 })
                 .observeOn(Schedulers.io())
                 .flatMap(i -> api.pushMsg(uid, RequestBody.create(MediaType.parse("text/plain"), text)))
-                .subscribe();
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe();//i -> Log.d("msg", "in Realm:"+rc.getMsg(currentMsgId)));
 
         return observer;
     }
@@ -294,6 +306,14 @@ public class ListFragment extends Fragment {
     public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
         inflater.inflate(R.menu.toolbar_menu, menu);
         super.onCreateOptionsMenu(menu,inflater);
+
+        for(int i = 0; i < menu.size(); i++){
+            Drawable drawable = menu.getItem(i).getIcon();
+            if(drawable != null) {
+                drawable.mutate();
+                drawable.setColorFilter(getResources().getColor(R.color.textColor), PorterDuff.Mode.SRC_ATOP);
+            }
+        }
     }
 
     @Override
@@ -316,9 +336,25 @@ public class ListFragment extends Fragment {
         super.onResume();
         this.setMenuVisibility(isNetworkAvailable());
 
-        Log.d("ListFragment", Integer.toString(LoadTime));
+        if (LoadTime == 2 && ra == null) {
+            LoadTime++;
+            List <Msg> tmp = rc.getDBMsgs();
+            if (tmp != null) ra = new RVAdapter(getContext(), tmp);
+        } else if (LoadTime == 2) {
+            rv.setLayoutManager(new LinearLayoutManager(getContext()));
+            rv.setItemAnimator(new DefaultItemAnimator());
+            rv.setAdapter(ra);
+        }
+        scrollView.post(() -> scrollView.fullScroll(ScrollView.FOCUS_DOWN));
     }
 
+    @Override
+    public void onPause(){
+        super.onPause();
+        dispose(observerSet);
+//        dispose(observerGet);
+        dispose(observerUid);
+    }
     @Override
     public void onStop(){
         super.onStop();
@@ -328,5 +364,8 @@ public class ListFragment extends Fragment {
     @Override
     public void onDestroy(){
         super.onDestroy();
+        disposables.clear();
+        RealmController.getInstance().close();
     }
+
 }

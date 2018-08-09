@@ -28,7 +28,6 @@ import okhttp3.RequestBody;
 
 public class OptionsFragment extends Fragment {
 
-    private static CompositeDisposable disposables = new CompositeDisposable();
     private static Disposable observerSend = null;
 
     private static RealmController rc=RealmController.getInstance();
@@ -44,7 +43,7 @@ public class OptionsFragment extends Fragment {
         Button send = view.findViewById(R.id.button_save);
         send.setOnClickListener(button -> {
             if (name.getText().length() > 0) {
-                pushName(name.getText().toString());
+                observerSend = pushName(name.getText().toString());
                 name.setText("");
             }
         });
@@ -86,6 +85,7 @@ public class OptionsFragment extends Fragment {
     public void onStop(){
         super.onStop();
         this.setMenuVisibility(true);
+        dispose(observerSend);
     }
 
 }

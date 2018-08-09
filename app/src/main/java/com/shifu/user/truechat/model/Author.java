@@ -24,6 +24,15 @@ public class Author extends RealmObject {
     @Expose
     private String username;
 
+    // To test
+    public Author() {}
+
+    public Author(Long uid, Long id, String username){
+        this.uid = uid;
+        this.id = id;
+        this.username = username;
+    }
+
     public Long getId() {
         return this.id;
     }

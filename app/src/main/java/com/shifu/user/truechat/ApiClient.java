@@ -65,12 +65,19 @@ public class ApiClient {
 
                         Log.d("Response", "size: " + buffer.size() + "-byte body");
 
+                        String content;
+                        MediaType contentType;
+                        ResponseBody body;
                         if (buffer.size() == 0) {
                             System.out.println("Response body is empty");
-                            MediaType contentType = response.body().contentType();
-                            ResponseBody body = ResponseBody.create(contentType, "[{}]");
-                            response = response.newBuilder().body(body).build();
+                            contentType = response.body().contentType();
+                            content = "[{}]";
+                            body = ResponseBody.create(contentType, content);
+                        } else {
+                            contentType = MediaType.parse("application/json; charset=windows-1251");
+                            body = ResponseBody.create(contentType, response.body().bytes());
                         }
+                        response = response.newBuilder().body(body).build();
                     }
                     return response;
                 });

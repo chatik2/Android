@@ -27,6 +27,7 @@ public class RVAdapter extends RecyclerView.Adapter<RVAdapter.RepoViewHolder> {
 
 
     RVAdapter(Context context , List<Msg> items){
+        //for (Msg item: items) Log.d("RA Init: ",item.toString());
         this.items = (items == null)?new ArrayList <>():items;
         this.inflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
         instance = this;
@@ -79,7 +80,7 @@ public class RVAdapter extends RecyclerView.Adapter<RVAdapter.RepoViewHolder> {
     }
 
     public void insertMsgs(List<Msg> msgs) {
-        Log.d("RA","Insert: "+msgs);
+        //Log.d("RA","Insert: "+msgs);
         if (msgs != null) {
             this.items.addAll(msgs);
             notifyDataSetChanged();
