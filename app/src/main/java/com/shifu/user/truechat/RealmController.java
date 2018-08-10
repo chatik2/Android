@@ -1,19 +1,23 @@
 package com.shifu.user.truechat;
 
 import android.content.Context;
+import android.support.annotation.NonNull;
 import android.util.Log;
 
 import com.shifu.user.truechat.model.Author;
 import com.shifu.user.truechat.model.Msg;
+import com.shifu.user.truechat.model.MyRealms;
 import com.shifu.user.truechat.model.User;
+import com.shifu.user.truechat.model.UserFields;
 
+import java.lang.reflect.Field;
 import java.util.List;
-import java.util.Random;
-import java.util.UUID;
 
 import io.realm.Realm;
 import io.realm.RealmConfiguration;
 import io.realm.RealmModel;
+import io.realm.RealmObject;
+import io.realm.RealmResults;
 
 public class RealmController {
 
@@ -33,16 +37,17 @@ public class RealmController {
 
             Realm.setDefaultConfiguration(config);
             realm = Realm.getDefaultInstance();
-            Log.d("Init max: ", Long.toString((Long) realm.where(Msg.class).max(Msg.FIELD_ID)));
+            Long size = (Long) realm.where(Msg.class).max(getIdField(Msg.class));
+            Log.d("Init max: ", (size==null)?"null":Long.toString(size));
             instance = this;
         }
     }
 
-    /**
+    /*
      * Create data functions
      */
     public Long newMsgId() {
-        Long max = (Long) realm.where(Msg.class).max(Msg.FIELD_ID);
+        Long max = (Long) realm.where(Msg.class).max(getIdField(Msg.class));
         return (max == null)?0:max +1;
     }
 
@@ -55,78 +60,139 @@ public class RealmController {
 //                out = r.nextLong() + r.nextLong();
 //            } while (realm.where(Msg.class).equalTo(Msg.FIELD_ID, out).findFirst() != null);
 //            Msg msg = realm.createObject(Msg.class);
-//            msg.setId(out);
+//            msg.setUmid(out);
 //            msg.setText(text);
-//            msg.setUid(realm.where(Author.class).findFirst().getUid());
+//            msg.setSuid(realm.where(Author.class).findFirst().getUuid());
 //        });
 //    }
 
-    /**
+    /*
      * Read data functions
      */
-    public String getName(Long id){
-        User user = realm.where(User.class).equalTo(User.FIELD_ID, id).findFirst();
-        if (user == null) return null;
 
-        String out = realm.copyFromRealm(user).getName();
-        if (id.equals(getId())) out = "Вы ("+out+")";
+    public <T extends RealmObject> Long getSize (Class<T> objClass) {
+        if (objClass == null) return null;
+        return realm.where(objClass).count();
+    }
+
+    // Нужна ли copyFromRealm, или, если просто копируем поля, то это избыточно? Пока оставляю
+    public<T extends RealmModel & UserFields & MyRealms> String getName(Class<T> objClass, Long id){
+        T item;
+        String out;
+        if (objClass != null && objClass.equals(User.class) && id != null) {
+            item = realm.where(objClass).equalTo(getIdField(objClass), id).findFirst();
+        } else if (objClass != null && objClass.equals(Author.class)) {
+            item = realm.where(objClass).findFirst();
+        } else {
+            //TODO вероятно, подобную ситуацию надо обрабатывать как custom exception, но пока так
+            //В текущей версии программы подобная ситуация, полагаю, невозможна
+            item = null;
+        }
+        if (item == null) return null;
+        out = realm.copyFromRealm(item).getName();
+
+        // Если id == null, то либо запрашивается AuthorName - не требуется обрамление, либо уже был return
+        if (id != null && id.equals(getId())) out = "Вы (" + out + ")";
 
         return out;
     }
 
-    public String getAuthorName(){
-        Author user = realm.where(Author.class).findFirst();
-        return (user == null)?"":user.getUsername();
-    }
-
-
-    public Boolean existUser(Long id){
-        return (realm.where(User.class).equalTo(User.FIELD_ID, id).findFirst() != null);
-    }
-
-    public Boolean existMsg(Long id){
-        return (realm.where(Msg.class).equalTo(User.FIELD_ID, id).findFirst() != null);
-    }
-
-    public List<Msg> getDBMsgs(){
-        return realm.copyFromRealm(realm.where(Msg.class).findAll().sort(Msg.FIELD_ID));
+    public Long getId(){
+        Author out = realm.where(Author.class).findFirst();
+        return (out == null)?null:realm.copyFromRealm(out).getSuid();
     }
 
     public Long getUid(){
         Author out = realm.where(Author.class).findFirst();
-        return (out == null)?null:realm.copyFromRealm(out).getUid();
+        return (out == null)?null:realm.copyFromRealm(out).getUuid();
     }
 
-    public Long getId(){
-        Author out = realm.where(Author.class).findFirst();
-        return (out == null)?null:realm.copyFromRealm(out).getId();
+    public<T extends RealmModel & MyRealms> Boolean exist(Class<T> objClass, Long id){
+        if (objClass.equals(User.class) || objClass.equals(Msg.class)) {
+            return (realm.where(objClass).equalTo(getIdField(objClass), id).findFirst() != null);
+        } else if (objClass.equals(Author.class)) {
+            return (realm.where(Author.class).findFirst() != null);
+        }
+        //если такого класса не существует, то точно и такого номера нет в базе :)
+        //в текущей версии, видимо, ситуация невозможна
+        return false;
     }
 
-    public Author getAuthor() {
-        Author out = realm.where(Author.class).findFirst();
-        return (out == null)?null:realm.copyFromRealm(out);
+    public <T extends RealmObject> RealmResults<T> getBase(Class<T> objClass, String sortField){
+        RealmResults<T> base;
+
+        boolean sort = exist(objClass, sortField);
+        if (sort){
+            base = realm.where(objClass).sort(sortField).findAll();
+        } else {
+            base = realm.where(objClass).findAll();
+        }
+
+        // Не потокобезопасно! Realms не передаёт свои объекты в другие потоки
+        return base;
     }
 
-    public Msg getMsg(Long id){
-        Msg out = realm.where(Msg.class).equalTo(Msg.FIELD_ID, id).findFirst();
-        return (out == null)?null:realm.copyFromRealm(out);
+    private <T extends RealmObject> boolean exist(Class<T> objClass, String checkField) {
+        boolean check = false;
+        if (checkField != null)
+        {
+            for (Field f: objClass.getDeclaredFields()) {
+                if (f.getName().equals(checkField)){
+                    check = true;
+                    break;
+                }
+            }
+        }
+        return check;
     }
 
-    /**
+
+    // to execute same exceptions in the one place
+    public static <T extends RealmModel & MyRealms> String getIdField(Class<T> objClass) {
+        String out;
+        try {
+            out = objClass.newInstance().getIdField();
+            return out;
+        }catch (IllegalAccessException e){
+            e.printStackTrace();
+        } catch (InstantiationException e) {
+            e.printStackTrace();
+        }
+
+        // In Exception case - there isn't such field
+        return "";
+    }
+
+    // getName частично дублирует функциональность, но, возможно, так удобнее?
+    public<T extends RealmModel & MyRealms> T getItem(Class<T> objClass, Long id) {
+        T out;
+        if (objClass != null && objClass.equals(Author.class)) {
+            out = realm.where(objClass).findFirst();
+        }
+        else if (objClass != null && (objClass.equals(Msg.class) || objClass.equals(User.class)) && id != null) {
+            out = realm.where(objClass).equalTo(getIdField(objClass), id).findFirst();
+        }
+        else {
+            out = null;
+        }
+        return (out == null) ? null : realm.copyFromRealm(out);
+    }
+
+    /*
      * Update data functions
      */
-    public void updateName(final Long id, final String name) {
-        realm.executeTransactionAsync(realm -> {
-            User user = realm.where(User.class).equalTo(User.FIELD_ID, id).findFirst();
-            if (user != null) user.setName(name);
-        });
-    }
 
     public void updateAuthorName(final String name) {
-        realm.executeTransactionAsync(realm -> {
-            Author user = realm.where(Author.class).findFirst();
-            if (user != null) user.setUsername(name);
-        });
+        if (name != null) {
+            realm.executeTransactionAsync(realm -> {
+                Author author = realm.where(Author.class).findFirst();
+                if (author != null) {
+                    author.setName(name);
+                    User user = realm.where(User.class).equalTo(getIdField(User.class), author.getSuid()).findFirst();
+                    user.setName(name);
+                }
+            });
+        }
     }
 
     //    public void updateDate(final Long mid, final String date) {
@@ -136,21 +202,19 @@ public class RealmController {
 //        });
 //    }
 
-    /**
+    /*
      * Delete data functions
      */
     public void clear() {
         realm.executeTransactionAsync(realm -> {
-            realm.where(Msg.class).findAll().deleteAllFromRealm();
-            realm.where(User.class).findAll().deleteAllFromRealm();
-            realm.where(Author.class).findAll().deleteAllFromRealm();
+            realm.deleteAll();
         });
     }
 
-    public void clearAuthor() {
-        realm.executeTransactionAsync(realm -> {
-            realm.where(Author.class).findAll().deleteAllFromRealm();
-        });
+    public<T extends RealmObject> void clear(Class<T> objClass) {
+        if (objClass != null) {
+            realm.executeTransactionAsync(realm -> realm.where(objClass).findAll().deleteAllFromRealm());
+        }
     }
 
     public void close() {

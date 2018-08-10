@@ -10,6 +10,7 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.shifu.user.truechat.model.Author;
 import com.shifu.user.truechat.model.Msg;
@@ -31,20 +32,20 @@ public class OptionsFragment extends Fragment {
     private static Disposable observerSend = null;
 
     private static RealmController rc=RealmController.getInstance();
-    private static ApiInterface  api = ApiClient.getInstance().getApi();
+    private static ApiInterface  api = ApiClient.getInstance(MainActivity.timeout).getApi();
 
+    TextView name;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.options_fragment, container, false);
 
-        TextView name = view.findViewById(R.id.new_name);
+        name = view.findViewById(R.id.new_name);
         name.requestFocus();
         Button send = view.findViewById(R.id.button_save);
         send.setOnClickListener(button -> {
             if (name.getText().length() > 0) {
                 observerSend = pushName(name.getText().toString());
-                name.setText("");
             }
         });
         return view;
@@ -52,16 +53,21 @@ public class OptionsFragment extends Fragment {
 
     private Disposable pushName(final String text){
         dispose(observerSend);
-        rc.updateName(rc.getId(), text);
+
+        if (rc.getUid() == null) {
+            Toast.makeText(getContext(), "Вы не зарегистрированы в чате, обновление имени недоступно",Toast.LENGTH_LONG).show();
+            return null;
+        }
+
+        name.setText("");
         rc.updateAuthorName(text);
         setTitle(text);
-
         Disposable observer = Single.just(rc.getUid())
                 .subscribeOn(AndroidSchedulers.mainThread())
                 .observeOn(Schedulers.io())
                 .flatMap(uid -> api.pushName(uid, RequestBody.create(MediaType.parse("text/plain"), text)))
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(i -> RVAdapter.getInstance().notifyDataSetChanged());
+                .subscribe(i -> RealmRVAdapter.getInstance().notifyDataSetChanged());
         return observer;
     }
 

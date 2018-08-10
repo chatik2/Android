@@ -17,13 +17,13 @@ import retrofit2.http.POST;
 
 public interface ApiInterface {
 
-//    String type = "mobile";
+    String type = "mobile";
 
-//    To Test - all msgs from user creation
-    String type = "web";
+//myTest - all msgs from user creation
+//    String type = "web";
 
     @GET("/new_user")
-    Single<Response<Author>> getUid();
+    Flowable<Response<Author>> getUid();
 
     @GET("/users")
     Flowable<Response<List<User>>> getUsers(@Header("type") String responseType, @Header("uid") Long uid);

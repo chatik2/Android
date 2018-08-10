@@ -7,7 +7,11 @@ import android.os.Bundle;
 import android.support.v7.widget.Toolbar;
 import android.view.MenuItem;
 
+import com.shifu.user.truechat.model.Msg;
+
 public class MainActivity extends AppCompatActivity {
+
+    public static int timeout = 5;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -17,7 +21,8 @@ public class MainActivity extends AppCompatActivity {
         Toolbar toolbar = findViewById(R.id.app_bar);
         setSupportActionBar(toolbar);
 
-        new RealmController(this);
+        RealmController rc = new RealmController(this);
+        new RealmRVAdapter(rc.getBase(Msg.class, "date"));
 
         getSupportFragmentManager()
                 .beginTransaction()

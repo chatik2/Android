@@ -22,6 +22,7 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.shifu.user.truechat.model.Author;
 import com.shifu.user.truechat.model.Msg;
@@ -29,11 +30,10 @@ import com.shifu.user.truechat.model.User;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Calendar;
 import java.util.Date;
-import java.util.List;
-import java.util.Random;
+import java.util.Locale;
+import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
 import io.reactivex.Flowable;
@@ -45,11 +45,19 @@ import io.reactivex.schedulers.Schedulers;
 import io.realm.Realm;
 import okhttp3.MediaType;
 import okhttp3.RequestBody;
-import retrofit2.Response;
+
+
+import static com.shifu.user.truechat.RealmController.getIdField;
+import static com.shifu.user.truechat.MainActivity.timeout;
 
 public class ListFragment extends Fragment {
 
-    private final DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm");
+    public static final String strDateFormat = "yyyy-MM-dd HH:mm";
+    public static final DateFormat dateFormat = new SimpleDateFormat(strDateFormat, Locale.US);
+
+    static {
+        dateFormat.setTimeZone(TimeZone.getTimeZone("GMT"));//Europe/Moscow"));
+    }//new Locale("ru"));
 
     private Integer LoadTime=0;
 
@@ -65,9 +73,9 @@ public class ListFragment extends Fragment {
     private static Disposable observerSet = null;
 
     // Init instances
-    private static RealmController rc=RealmController.getInstance();
-    private static ApiInterface  api;
-    private static RVAdapter ra;
+    private static RealmController rc = RealmController.getInstance();
+    private static RealmRVAdapter ra = RealmRVAdapter.getInstance();
+    private static ApiInterface api = ApiClient.getInstance(MainActivity.timeout).getApi();
 
     @Override
     public void onCreate(Bundle savedInstanceState){
@@ -76,13 +84,14 @@ public class ListFragment extends Fragment {
 
         LoadTime++;
 
-        //TO Test
+        //myTest
+        //Log.d("Msgs:", rc.getBase(Msg.class, getIdField(Msg.class)).toString());
 //        Realm realm = Realm.getDefaultInstance();
 //        realm.executeTransaction(trRealm -> {
 //            trRealm.deleteAll();
-//            Long testUnicalId = 774L;
-//            Long testSecondId = 68590L;
-//            String testUsername = "RAS";
+//            Long testUnicalId = 160L;
+//            Long testSecondId = 99092L;
+//            String testUsername = "BrowserUser";
 //            if (trRealm.where(Author.class).findFirst() == null) {
 //                trRealm.copyToRealm(new Author(testUnicalId, testSecondId, testUsername));
 //            }
@@ -98,8 +107,6 @@ public class ListFragment extends Fragment {
         rv.setNestedScrollingEnabled(false);
         scrollView = view.findViewById(R.id.nested_scroll_view);
 
-        api = ApiClient.getInstance().getApi();
-
         currentMsg = view.findViewById(R.id.msg);
         Button buttonSend = view.findViewById(R.id.send_button);
         buttonSend.setOnClickListener((View onClickView) -> {
@@ -109,7 +116,6 @@ public class ListFragment extends Fragment {
                 //byte bytes[] = currentMsg.getText().toString().getBytes();
                 //pushMsg(new String(bytes, Charset.forName("UTF-8")));
                 observerSet = pushMsg(currentMsg.getText().toString());
-                currentMsg.setText("");
             }
         });
 
@@ -124,36 +130,66 @@ public class ListFragment extends Fragment {
                 return view;
             }
             LoadTime++;
-            setAdapterData(rc.getDBMsgs());
+            setAdapterData();
 
-            //TODO кнопка синхронизации при неудаче - сообщение о том, что сообщения не доходят!
             if (rc.getUid() == null) {
-                observerUid = api.getUid()
+
+                observerUid = Flowable.interval(1, TimeUnit.SECONDS)
+                        .subscribeOn(AndroidSchedulers.mainThread())
+                        .filter(i -> i%timeout == 0)
+
+                        /*
+                         * REST GET uid
+                         */
+                        .observeOn(Schedulers.io())
+                        .flatMap(i -> api.getUid())
                         .map(response -> {
                             //Log.d("getAuthor", "response" + response);
                             return response;
                         })
                         .subscribeOn(Schedulers.io())
+
+                        /*
+                         * Realm Author
+                         */
                         .observeOn(Schedulers.computation())
                         .map(author -> {
-                            Realm realm = Realm.getDefaultInstance();
-                            realm.executeTransaction(trRealm -> {
-                                trRealm.where(Author.class).findAll().deleteAllFromRealm();
-                                trRealm.copyToRealm(author.body());
-                            });
-                            return 0;
+                            if (author.code() != 520) {
+                                Realm realm = Realm.getDefaultInstance();
+                                realm.executeTransaction(trRealm -> {
+                                    trRealm.where(Author.class).findAll().deleteAllFromRealm();
+                                    trRealm.copyToRealm(author.body());
+                                    User user = trRealm.createObject(User.class, author.body().getSuid());
+                                    user.setName(author.body().getName());
+                                });
+                            }
+                            return author;
                         })
+
+                        /*
+                         * UI запуск функции получения данных
+                         */
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe(i -> {
-                            //dispose(observerUid);
-                            observerGet = getData();
-                            disposables.add(observerGet);
+                            if (i.code() == 520) {
+                                Toast.makeText(getContext(),
+                                        "Ошибка соединения: "
+                                                + i.message()
+                                                + "\nповтор попытки соединения через "
+                                                + MainActivity.timeout
+                                                + " секунд", Toast.LENGTH_LONG).show();
+
+                            } else {
+                                //dispose(observerUid);
+                                observerGet = getData("web");
+                                disposables.add(observerGet);
+                            }
                         });
                 disposables.add(observerUid);
             } else {
                 //Log.d("Logged", "author:" + rc.getAuthor());
                 if (observerGet == null) {
-                    observerGet = getData();
+                    observerGet = getData("mobile");
                     disposables.add(observerGet);
                 }
             }
@@ -167,20 +203,13 @@ public class ListFragment extends Fragment {
         ((AppCompatActivity)getActivity()).getSupportActionBar().setTitle(newTitle);
     }
 
-    void setAdapterData(List<Msg> msgs){
-        if (ra == null && msgs == null) {
-            return;
-        }
-        else if (ra == null) {
-            ra = new RVAdapter(getContext(), msgs);
-        }
-        else {
-            ra.insertMsgs(msgs);
-        }
+    void setAdapterData(){
         rv.setLayoutManager(new LinearLayoutManager(getContext()));
         rv.setItemAnimator(new DefaultItemAnimator());
         rv.setAdapter(ra);
-        scrollView.post(() -> scrollView.fullScroll(ScrollView.FOCUS_DOWN));
+        //scrollView.post(() -> scrollView.fullScroll(ScrollView.FOCUS_DOWN));
+        rv.smoothScrollToPosition(ra.getItemCount());
+        currentMsg.requestFocus();
     }
 
     private boolean isNetworkAvailable(){
@@ -189,9 +218,18 @@ public class ListFragment extends Fragment {
         return  info!=null && info.isConnected();
     }
 
-    public Disposable getData(){
+    /**
+     * Основная цепочка запросов получения данных___________________________________________________
+     * @return
+     */
+    public Disposable getData(String getUsersRequestType){
         final Long uid = rc.getUid();
 
+        dispose(observerUid);
+
+        /*
+         * Генерация раз сигнала обновления c данным интервалом. TODO настройка интервала обновления чата
+         */
         Disposable observer = Flowable.interval(1, TimeUnit.SECONDS)
                 .filter(i -> {
                     //Log.d("getData", "channel: "+channelNum+" i: "+i);
@@ -199,108 +237,174 @@ public class ListFragment extends Fragment {
                 })
                 .onBackpressureLatest()
                 .subscribeOn(Schedulers.computation())
+
+                /*
+                 * REST GET /users
+                 */
                 .observeOn(Schedulers.io())
-                .flatMap(i -> {
-                    //Log.d("getData", "start");
-                    return api.getUsers(ApiInterface.type, uid);
-                })
-                .map(Response::body)
-                .observeOn(AndroidSchedulers.mainThread())
-                .map(list -> {
-                    List<User> out = new ArrayList <>();
-                    for (User obj: list){
-                        if (obj.getId() != null && !rc.existUser(obj.getId())) {
-                            out.add(obj);
-                        }
-                        else if  (obj.getName() != null && !rc.getName(obj.getId()).equals(obj.getName())){
-                            rc.updateName(obj.getId(), obj.getName());
-                        }
-                    }
-                    return out;
-                })
+                .flatMap(i -> api.getUsers(getUsersRequestType, uid))
+
+                /*
+                 * Realm User
+                 */
                 .observeOn(Schedulers.computation())
                 .map(users -> {
-                    Realm realm = Realm.getDefaultInstance();
-                    realm.executeTransaction(trRealm -> trRealm.copyToRealm(users));
-                    return 0;
+                   if (users.code() != 520) {
+                       //Log.d("getMsgs", "loading users: " + users);
+                       Realm realm = Realm.getDefaultInstance();
+                       if (realm.where(User.class).count() == 0) {
+                           realm.executeTransaction(trRealm -> trRealm.copyToRealm(users.body()));
+                       } else {
+                           realm.executeTransaction(trRealm -> {
+                               for (User obj : users.body()) {
+                                   User userIn = trRealm.where(User.class).equalTo(getIdField(User.class), obj.getSuid()).findFirst();
+                                   if (obj.getSuid() != null && userIn == null) {
+                                       trRealm.copyToRealm(obj);
+                                   } else if (obj.getName() != null && !userIn.getName().equals(obj.getName())) {
+                                       userIn.setName(obj.getName());
+                                   }
+                               }
+                           });
+                       }
+                   }
+                   return 0;
                 })
+
+                /*
+                 * REST GET /msgs
+                 */
                 .observeOn(Schedulers.io())
-                .concatMap(i -> {
-                    //Log.d("getMsgs", "start");
-                    return  api.getMsgs(ApiInterface.type, uid);
-                })
-                .observeOn(AndroidSchedulers.mainThread())
-                .map(Response::body)
-                .map(list -> {
-                    //Log.d("getMsgs", "received:"+list);
-                    List<Msg> out = new ArrayList <>();
-                    for (Msg obj: list){
-                        if (!obj.getUid().equals(rc.getId()) && obj.getId() != null && !rc.existMsg(obj.getId())) {
-                            //Log.d("getMsgs:", obj.toString());
-                            out.add(obj);
-                        }
-                    }
-                    return out;
-                })
+                .concatMap(i -> api.getMsgs(ApiInterface.type, uid))
+
+                /*
+                 * Realm Msg
+                 */
                 .observeOn(Schedulers.computation())
                 .map(msgs -> {
-                    Realm realm = Realm.getDefaultInstance();
-                    realm.executeTransaction(trRealm -> {
-                        for (Msg item : msgs){
-                            Long max = (Long) trRealm.where(Msg.class).max(Msg.FIELD_ID);
-                            max = (max==null)?0:max+1;
-                            //Log.d("getMsgs","Load in Realm: "+item.toString());
-                            trRealm.copyToRealm(item);
-                            item.setId(max);
-                        }
-                    });
+                    if (msgs.code() != 520) {
+                        Log.d("getMsgs", "loading msgs: " + msgs);
+                        Realm realm = Realm.getDefaultInstance();
+                        Long casheSize = realm.where(Msg.class).count();
+
+                        /*
+                         * netmid != null - сообщение корректно записано в базе
+                         * suid != null - указан пользователь - сообщение корректно записано в базе
+                         * msgIn == null (netmidIn != netmId) - сообщение новое, такого в базе ещё нет
+                         * свое или нет - не важно, т.к. если свои, но не дошли до бекенда (тогда newmId у нас будет null => отмечены (TODO)
+                         */
+                        realm.executeTransaction(trRealm -> {
+                            for (Msg obj : msgs.body()) {
+                                if (obj.getNetmid() != null && obj.getSuid() != null) {
+
+                                    Msg msgIn = trRealm.where(Msg.class).equalTo(Msg.getNetIdField(), obj.getNetmid()).findFirst();
+                                    if (casheSize == 0 || msgIn == null) {
+                                        Long max = (Long) trRealm.where(Msg.class).max(RealmController.getIdField(Msg.class));
+                                        max = (max == null) ? 0 : max + 1;
+                                        obj.setUmid(max);
+                                        obj.setDate(obj.getDate());
+                                        trRealm.copyToRealm(obj);
+                                        Log.d("getMsgs","Load in Realm: "+obj.toString());
+                                    }
+                                }
+                            }
+                        });
+                    }
                     return msgs;
                 })
+
+                /*
+                 * UI update
+                 */
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(msgs -> {
-                    //Log.d("getData", "end");
-                    setTitle(rc.getAuthorName());
-                    setAdapterData(msgs);
-                    currentMsg.requestFocus();
+                .subscribe(response -> {
+                    if (response.code() == 520) {
+                        Toast.makeText(getContext(), response.message(), Toast.LENGTH_LONG).show();
+                    } else {
+                        setTitle(rc.getName(Author.class, null));
+                        ra.notifyDataSetChanged();
+                        //setAdapterData(msgs);
+                        setAdapterData();
+                    }
                 });
 
         return observer;
     }
 
+    /**
+     * Цепочка запросов отправки данных_____________________________________________________________
+     * @return
+     */
     private Disposable pushMsg(final String text){
         final Long currentMsgId = rc.newMsgId();
         final Long uid = rc.getUid();
 
+        if (uid == null) {
+            Toast.makeText(getContext(), "Вы не зарегистрированы в чате, сообщение не будет доставлено",Toast.LENGTH_LONG).show();
+            return null;
+        }
+
+        currentMsg.setText("");
         scrollView.post(() -> scrollView.fullScroll(ScrollView.FOCUS_DOWN));
         Disposable observer;
         observer = Single.just(0)
                 .subscribeOn(AndroidSchedulers.mainThread())
+
+                /*
+                 * Realm Msg new
+                 */
                 .observeOn(Schedulers.computation())
                 .map(i-> {
                     Realm realm = Realm.getDefaultInstance();
-                    realm.executeTransaction(realm1 -> {
-                        Msg msg = realm1.createObject(Msg.class);
-                        msg.setId(currentMsgId);
+                    realm.executeTransaction(trRealm -> {
+                        Msg msg = trRealm.createObject(Msg.class);
+                        msg.setUmid(currentMsgId);
                         msg.setText(text);
-                        msg.setDate(dateFormat.format(new Date())+" msk");
-                        msg.setUid(realm1.where(Author.class).findFirst().getId());
+
+                        // "костыльное решение"
+                        // - иначе будет рассинхронизация со фронтендом из-за старого решения, как взаимодействовать с бекендом
+                        Calendar cal = Calendar.getInstance();
+                        cal.setTime(new Date());
+                        cal.add(Calendar.HOUR_OF_DAY, 3);
+                        msg.setDate(cal.getTime());
+
+                        msg.setSuid(trRealm.where(Author.class).findFirst().getSuid());
                     });
-                    return realm.copyFromRealm(realm.where(Msg.class).equalTo(Msg.FIELD_ID, currentMsgId).findFirst());
+                    return realm.copyFromRealm(realm.where(Msg.class).equalTo(RealmController.getIdField(Msg.class), currentMsgId).findFirst());
                 })
-                .timeout(100, TimeUnit.MILLISECONDS)
+
+                /*
+                 * UI update
+                 */
                 .observeOn(AndroidSchedulers.mainThread())
                 .map(msg -> {
-                    //Log.d("msg", msg.toString());
-                    ra.insertMsgs(Collections.singletonList(msg));
+                    ra.notifyDataSetChanged();
                     return msg;
                 })
+
+                /*
+                 * REST POST new_msg
+                 */
                 .observeOn(Schedulers.io())
                 .flatMap(i -> api.pushMsg(uid, RequestBody.create(MediaType.parse("text/plain"), text)))
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe();//i -> Log.d("msg", "in Realm:"+rc.getMsg(currentMsgId)));
+                /*
+                 * Realm Msg - update Date, NetMid.
+                 */
+                .observeOn(Schedulers.io())
+                .subscribe(msg -> {
+                    Realm realm = Realm.getDefaultInstance();
+                    realm.executeTransaction(trRealm -> {
+                        Msg msgIn = trRealm.where(Msg.class).equalTo(getIdField(Msg.class), currentMsgId).findFirst();
+                        if (msg.code() == 520) {
+                            msgIn.setText("ОШИБКА СОЕДИНЕНИЯ\n Не загружено на сервер:\n"+msgIn.getText());
+                        } else {
+                            msgIn.setNetmid(msg.body().getNetmid());
+                        }
+                    });
+                });
 
         return observer;
     }
+
 
     @Override
     public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
@@ -335,17 +439,8 @@ public class ListFragment extends Fragment {
     public void onResume(){
         super.onResume();
         this.setMenuVisibility(isNetworkAvailable());
-
-        if (LoadTime == 2 && ra == null) {
-            LoadTime++;
-            List <Msg> tmp = rc.getDBMsgs();
-            if (tmp != null) ra = new RVAdapter(getContext(), tmp);
-        } else if (LoadTime == 2) {
-            rv.setLayoutManager(new LinearLayoutManager(getContext()));
-            rv.setItemAnimator(new DefaultItemAnimator());
-            rv.setAdapter(ra);
-        }
-        scrollView.post(() -> scrollView.fullScroll(ScrollView.FOCUS_DOWN));
+        setAdapterData();
+        //scrollView.post(() -> scrollView.fullScroll(ScrollView.FOCUS_DOWN));
     }
 
     @Override

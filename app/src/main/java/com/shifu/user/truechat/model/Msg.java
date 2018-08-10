@@ -1,23 +1,30 @@
 package com.shifu.user.truechat.model;
 
+import android.util.Log;
+
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
 
 import org.apache.commons.lang3.builder.ToStringBuilder;
 
-import java.util.UUID;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
-import io.realm.Realm;
 import io.realm.RealmObject;
-import io.realm.annotations.PrimaryKey;
 
-public class Msg extends RealmObject {
-    public static final String FIELD_ID = "id";
+public class Msg extends RealmObject implements MyRealms {
 
-//    @PrimaryKey
-//    @SerializedName("id")
+    private static final String FIELD_ID = "umid";
+    private static final String FIELD_MID = "netmid";
+
+    @SerializedName("id")
     @Expose
-    private Long id;
+    private Long netmid;
+
+    private Long umid;
 
     @SerializedName("text")
     @Expose
@@ -25,12 +32,14 @@ public class Msg extends RealmObject {
 
     @SerializedName("date")
     @Expose
-    private String date;
+    private Date date;
 
     @SerializedName("secondUserId")
     @Expose
-    private Long uid;
+    private Long suid;
 
+
+    // Unusable fields from base
     @SerializedName("lastActivityDate")
     @Expose
     private String lastActivityDate;
@@ -39,25 +48,38 @@ public class Msg extends RealmObject {
     @Expose
     private String lastRequestDate;
 
+    // To get newInstance of class, to use "static" function getIdField
+    public Msg(){}
+
     @Override
     public String toString() {
         return new ToStringBuilder(this)
-                .append("local id", id)
+                .append("net umid", netmid)
+                .append("local umid", umid)
                 .append("text", text)
                 .append("date", date)
-                .append("uid", uid)
+                .append("suid", suid)
+                .append("lastActivityDate", lastActivityDate)
+                .append("lastRequestDate", lastRequestDate)
                 .toString();
     }
 
+    @Override
+    public String getIdField() {
+        return FIELD_ID;
+    }
 
-    public Long getId() {
-        return id;
+    public static String getNetIdField() {
+        return FIELD_MID;
+    }
+
+    public Long getUmid() {
+        return umid;
     }
 
     // In transaction only
-    public Long setId(Long uuid) {
-        this.id = uuid;
-        return uuid;
+    public void setUmid(Long umid) {
+        this.umid = umid;
     }
 
     public String getText() {
@@ -67,19 +89,27 @@ public class Msg extends RealmObject {
         this.text = data;
     }
 
-    public String getDate() {
+    public Date getDate() {
         return date;
     }
-    public void setDate(String data) {
-        this.date = data;
+    public void setDate(Date date) {
+        this.date = date;
     }
 
-    public void setUid(Long uid) {
-        this.uid = uid;
+    public void setSuid(Long suid) {
+        this.suid = suid;
     }
-    public Long getUid(){
-        return this.uid;
+    public Long getSuid(){
+        return this.suid;
     }
 
+
+    public Long getNetmid() {
+        return netmid;
+    }
+
+    public void setNetmid(Long netmid) {
+        this.netmid = netmid;
+    }
 }
 
